@@ -401,6 +401,66 @@ FRESULT exec_boot_script(const char *path, bool selftest, bool interruptible)
     return f_res;
 }
 
+static DAC_HandleTypeDef DacHandle={0};
+
+void DMA1_Stream5_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(DacHandle.DMA_Handle1);
+}
+
+void TIM6_ConfigHAL(void)
+{
+  static TIM_HandleTypeDef  htim;
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+
+  __HAL_RCC_TIM6_CLK_ENABLE();
+
+  /*##-1- Configure the TIM peripheral #######################################*/
+  /* Time base configuration */
+  htim.Instance = TIM6;
+
+  htim.Init.Period            = 0x7FF;
+  htim.Init.Prescaler         = 0;
+  htim.Init.ClockDivision     = 0;
+  htim.Init.CounterMode       = TIM_COUNTERMODE_UP;
+  htim.Init.RepetitionCounter = 0;
+  HAL_TIM_Base_Init(&htim);
+
+  /* TIM6 TRGO selection */
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+
+  HAL_TIMEx_MasterConfigSynchronization(&htim, &sMasterConfig);
+
+  /*##-2- Enable TIM peripheral counter ######################################*/
+  HAL_TIM_Base_Start(&htim);
+}
+
+#define DACx_CHANNEL                    DAC_CHANNEL_1
+static const uint8_t aEscalator8bit[6] = {0x0, 0x33, 0x66, 0x99, 0xCC, 0xFF};
+void init_dac()
+{
+
+  TIM6_ConfigHAL();
+  DacHandle.Instance = DAC1;
+  HAL_DAC_Init(&DacHandle);
+
+  DAC_ChannelConfTypeDef sConfig={0};
+  sConfig.DAC_Trigger = DAC_TRIGGER_T6_TRGO;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+
+  if (HAL_DAC_ConfigChannel(&DacHandle, &sConfig, DACx_CHANNEL) != HAL_OK) {
+      __fatal_error("Could not access LFS\n");
+  }
+
+  /*##-2- Enable DAC selected channel and associated DMA #############################*/
+  if (HAL_DAC_Start_DMA(&DacHandle, DACx_CHANNEL, (uint32_t *)aEscalator8bit, 6, DAC_ALIGN_8B_R) != HAL_OK) {
+      __fatal_error("Could not access LFS\n");
+  }
+
+}
+
 int main(void)
 {
     #if MICROPY_HW_SDRAM_SIZE
@@ -497,6 +557,8 @@ soft_reset:
 
     // Remove the BASEPRI masking (if any)
     irq_set_base_priority(0);
+
+    init_dac();
 
     // Initialize storage
     if (sdcard_is_present()) {

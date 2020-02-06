@@ -245,3 +245,65 @@ void HAL_MspDeInit(void)
 {
 
 }
+
+#define DACx                            DAC1
+#define DACx_CHANNEL_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
+#define DMAx_CLK_ENABLE()               __HAL_RCC_DMA1_CLK_ENABLE()
+
+#define DACx_CLK_ENABLE()               __HAL_RCC_DAC12_CLK_ENABLE()
+#define DACx_FORCE_RESET()              __HAL_RCC_DAC12_FORCE_RESET()
+#define DACx_RELEASE_RESET()            __HAL_RCC_DAC12_RELEASE_RESET()
+
+/* Definition for DACx's DMA_STREAM */
+#define DACx_DMA_INSTANCE               DMA1_Stream5
+
+/* Definition for DACx's NVIC */
+#define DACx_DMA_IRQn                   DMA1_Stream5_IRQn
+#define DACx_DMA_IRQHandler             DMA1_Stream5_IRQHandler
+
+void HAL_DAC_MspInit(DAC_HandleTypeDef *hdac)
+{
+  GPIO_InitTypeDef          GPIO_InitStruct;
+  static DMA_HandleTypeDef  hdma_dac1;
+
+  /*##-1- Enable peripherals and GPIO Clocks #################################*/
+  /* Enable GPIO clock ****************************************/
+  DACx_CHANNEL_GPIO_CLK_ENABLE();
+  /* DAC Periph clock enable */
+  DACx_CLK_ENABLE();
+  /* DMA1 clock enable */
+  DMAx_CLK_ENABLE();
+
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*##-3- Configure the DMA ##########################################*/
+  /* Set the parameters to be configured for DACx_DMA_STREAM */
+  hdma_dac1.Instance = DACx_DMA_INSTANCE;
+
+  hdma_dac1.Init.Request  = DMA_REQUEST_DAC1;
+
+  hdma_dac1.Init.Direction = DMA_MEMORY_TO_PERIPH;
+  hdma_dac1.Init.PeriphInc = DMA_PINC_DISABLE;
+  hdma_dac1.Init.MemInc = DMA_MINC_ENABLE;
+  hdma_dac1.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+  hdma_dac1.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+  hdma_dac1.Init.Mode = DMA_CIRCULAR;
+  hdma_dac1.Init.Priority = DMA_PRIORITY_HIGH;
+
+  HAL_DMA_Init(&hdma_dac1);
+
+  /* Associate the initialized DMA handle to the DAC handle */
+  __HAL_LINKDMA(hdac, DMA_Handle1, hdma_dac1);
+
+  /*##-4- Configure the NVIC for DMA #########################################*/
+  /* Enable the DMA1_Stream5 IRQ Channel */
+  HAL_NVIC_SetPriority(DACx_DMA_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(DACx_DMA_IRQn);
+
+}
+
+

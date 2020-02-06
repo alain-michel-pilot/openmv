@@ -403,9 +403,9 @@ FRESULT exec_boot_script(const char *path, bool selftest, bool interruptible)
 
 static DAC_HandleTypeDef DacHandle={0};
 
-void DMA1_Stream5_IRQHandler(void)
+void DMA1_Stream6_IRQHandler(void)
 {
-  HAL_DMA_IRQHandler(DacHandle.DMA_Handle1);
+  HAL_DMA_IRQHandler(DacHandle.DMA_Handle2);
 }
 
 void TIM6_ConfigHAL(void)
@@ -437,7 +437,7 @@ void TIM6_ConfigHAL(void)
   HAL_TIM_Base_Start(&htim);
 }
 
-#define DACx_CHANNEL                    DAC_CHANNEL_1
+#define DACx_CHANNEL                    DAC_CHANNEL_2
 static const uint8_t aEscalator8bit[6] = {0x0, 0x33, 0x66, 0x99, 0xCC, 0xFF};
 void init_dac()
 {
